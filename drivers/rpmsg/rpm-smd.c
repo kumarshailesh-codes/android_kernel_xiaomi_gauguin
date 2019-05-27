@@ -1371,10 +1371,15 @@ int msm_rpm_wait_for_ack(uint32_t msg_id)
 	if (!elem)
 		return rc;
 
-	wait_for_completion(&elem->ack);
-	trace_rpm_smd_ack_recvd(0, msg_id, 0xDEADFEED);
+	rc = wait_for_completion_timeout(&elem->ack, 5 * HZ);
+	if (!rc) {
+		pr_err("RPM msg %u timeout while waiting for ACK\n", msg_id);
+		rc = -ETIMEDOUT;
+	} else {
+		trace_rpm_smd_ack_recvd(0, msg_id, 0xDEADFEED);
+		rc = elem->errno;
+	}
 
-	rc = elem->errno;
 	msm_rpm_free_list_entry(elem);
 
 	return rc;
