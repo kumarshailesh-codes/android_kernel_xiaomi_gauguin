@@ -344,9 +344,7 @@ static unsigned long get_extent(enum pgt_entry entry, unsigned long old_addr,
 
 	next = (old_addr + size) & mask;
 	/* even if next overflowed, extent below will be ok */
-	extent = next - old_addr;
-	if (extent > old_end - old_addr)
-		extent = old_end - old_addr;
+	extent = (next > old_end) ? old_end - old_addr : next - old_addr;
 	next = (new_addr + size) & mask;
 	if (extent > next - new_addr)
 		extent = next - new_addr;
@@ -430,7 +428,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 				break;
 			if (move_pgt_entry(NORMAL_PUD, vma, old_addr, new_addr,
 						old_end, old_pud, new_pud,
-						true))
+						need_rmap_locks))
 				continue;
 		}
 
@@ -458,7 +456,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 			 */
 			if (move_pgt_entry(NORMAL_PMD, vma, old_addr, new_addr,
 						old_end, old_pmd, new_pmd,
-						true))
+						need_rmap_locks))
 				continue;
 		}
 
