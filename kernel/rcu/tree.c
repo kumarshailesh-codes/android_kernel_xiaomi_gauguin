@@ -168,6 +168,7 @@ static void invoke_rcu_core(void);
 static void invoke_rcu_callbacks(struct rcu_state *rsp, struct rcu_data *rdp);
 static void rcu_report_exp_rdp(struct rcu_state *rsp,
 			       struct rcu_data *rdp, bool wake);
+static void rcu_report_qs_rdp(int cpu, struct rcu_state *rsp, struct rcu_data *rdp);
 static void sync_sched_exp_online_cleanup(int cpu);
 
 /* rcuc/rcub kthread realtime priority */
@@ -2029,6 +2030,20 @@ static bool rcu_gp_init(struct rcu_state *rsp)
 		WRITE_ONCE(rsp->gp_activity, jiffies);
 	}
 
+	/*
+	 * Immediately report QS for the GP kthread's CPU. The GP kthread
+	 * cannot be in an RCU read-side critical section while running
+	 * the FQS scan. This eliminates the need for a second FQS wait
+	 * when all CPUs are idle.
+	 */
+	preempt_disable();
+	{
+		struct rcu_data *rdp = this_cpu_ptr(rsp->rda);
+
+		rdp->cpu_no_qs.b.norm = false;
+		rcu_report_qs_rdp(smp_processor_id(), rsp, rdp);
+	}
+	preempt_enable();
 	return true;
 }
 
