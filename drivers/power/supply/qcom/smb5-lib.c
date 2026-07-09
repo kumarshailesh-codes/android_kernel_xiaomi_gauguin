@@ -2592,34 +2592,25 @@ int smblib_set_prop_input_suspend(struct smb_charger *chg,
 {
 	int rc = 0;
 
-	/* vote 0mA when suspended */
-	rc = vote(chg->usb_icl_votable, USER_VOTER, false, 0);
-	if (rc < 0) {
-		smblib_err(chg, "Couldn't vote to %s USB rc=%d\n",
-			(bool)val->intval ? "suspend" : "resume", rc);
-		return rc;
-	}
-
-	rc = vote(chg->dc_suspend_votable, USER_VOTER, false, 0);
-	if (rc < 0) {
-		smblib_err(chg, "Couldn't vote to %s DC rc=%d\n",
-			(bool)val->intval ? "suspend" : "resume", rc);
-		return rc;
-	}
-
 	if (val->intval == 1) {
-		// Standard Suspend: suspend USB charger input completely
-		rc = vote(chg->input_suspend_votable, USER_VOTER, true, 0);
+		// Standard Suspend: suspend USB and DC inputs completely (runs 100% off battery)
+		rc = vote(chg->usb_icl_votable, USER_VOTER, true, 0);
+		if (rc >= 0)
+			rc = vote(chg->dc_suspend_votable, USER_VOTER, true, 0);
 		vote(chg->chg_disable_votable, BYPASS_VOTER, false, 0);
 		bypass_charging = 0;
 	} else if (val->intval == 2) {
-		// Motherboard Bypass Charging: stop battery charging but keep USB input active!
-		rc = vote(chg->input_suspend_votable, USER_VOTER, false, 0);
+		// Motherboard Bypass Charging: stop battery charging but keep USB/DC inputs active!
+		rc = vote(chg->usb_icl_votable, USER_VOTER, false, 0);
+		if (rc >= 0)
+			rc = vote(chg->dc_suspend_votable, USER_VOTER, false, 0);
 		vote(chg->chg_disable_votable, BYPASS_VOTER, true, 0);
 		bypass_charging = 1;
 	} else {
 		// Standard charging (Disabled state): resume normal operations
-		rc = vote(chg->input_suspend_votable, USER_VOTER, false, 0);
+		rc = vote(chg->usb_icl_votable, USER_VOTER, false, 0);
+		if (rc >= 0)
+			rc = vote(chg->dc_suspend_votable, USER_VOTER, false, 0);
 		vote(chg->chg_disable_votable, BYPASS_VOTER, false, 0);
 		bypass_charging = 0;
 	}
